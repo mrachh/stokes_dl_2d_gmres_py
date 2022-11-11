@@ -90,7 +90,7 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(zn,zw,zx,i)
         zn = rn(1,i) + ima*rn(2,i)
         zw = -0.25d0*dsdt(i)*rkappa(i)/pi
         zx = -0.25d0*dsdt(i)*rkappa(i)*zn*zn/pi
-        vel(i) = vel(i) + pwgt*velpert*zn
+        vel(i) = vel(i) + pwgt*dimag(velpert*zn)
         vel(i) = vel(i) + dwgt*( (zw+zx)*dreal(dens(i)) +
      1       ima*(zw-zx)*dimag(dens(i))) 
       enddo

@@ -23,7 +23,7 @@ c     using an iterative solver.
 
       real *8 eps
       integer numit, ngmrec
-      complex *16 ima,zn,zu,ztmp
+      complex *16 ima,zn,zu,ztmp,velpert
       real *8, allocatable :: errs(:)
 
       data ima/(0.0d0,1.0d0)/
@@ -44,13 +44,14 @@ c     The weight corresponding to the generalized 1's matrix
       a = 1.2d0
       b = 1.3d0
       n = 256
-      cxsource = -4.05d0 
+      cxsource = -3.05d0 
       cysource = -0.02d0 
 
       allocate(src(2,n),dsdt(n),rn(2,n),rkappa(n))
       allocate(rhs(n),soln(n))
       ifbipot = 0
       itype = 0
+      velpert = 0
       do i=1,n
         theta = (i-1.0d0)*2*pi/n
         ct = cos(theta)
@@ -70,7 +71,10 @@ c     The weight corresponding to the generalized 1's matrix
      1           cysource,xvel,yvel,vort,
      2           pressure,ifbipot,bipotexact)      
         rhs(i) = -yvel + ima*xvel
+        zn = rn(1,i) + ima*rn(2,i)
+        velpert = velpert + dimag(conjg(zn)*rhs(i))*dsdt(i)
       enddo
+      print *, "velpert=",velpert
 
 
       ra = 0
@@ -99,11 +103,14 @@ c     Call the solver
       t2 = second()
       call prin2('Total time to compute solution = *',t2-t1,1)
       call prin2('soln=*',soln,24)
-      write(6,*) 'Enter x'
-      read(5,*) xp
-      write(6,*) 'Enter y'
-      read(5,*) yp
+      print *, 'Enter x'
+      read *, xp
+      print *, 'Enter y'
+      read *, yp
       zx = dcmplx(xp,yp)
+
+      zvel = 0
+
 
       do i=1,n
         zn = rn(1,i) + ima*rn(2,i)
@@ -119,11 +126,15 @@ c     Call the solver
      1                     dconjg(zdis)
 
       enddo
-      write(6,*) 'zvel = ',zvel
+      print *, 'zvel = ',zvel
+      xvt = 0
+      yvt = 0
+      vort = 0
+      ifw = 0
       call uexact(itype,xp,yp,cxsource,cysource,xvt,yvt,vort,
      1            pressure,ifw,w) 
-      write(6,*) 'xvt,yvt',xvt,yvt
-      write(6,*) 'err=',dcmplx(xvt,yvt) - zvel
+      print *, 'xvt,yvt',xvt,yvt
+      print *, 'err=',dcmplx(xvt,yvt) - zvel
 
       return
       end
