@@ -82,7 +82,6 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,zn) REDUCTION(+:ra,velpert)
 C$OMP END PARALLEL DO      
 
       velpert = velpert/ra
-      print *, "velpert=",velpert
 c
 c  add one's matrix and fix correction
 c
@@ -104,6 +103,10 @@ C$OMP END PARALLEL DO
 
       subroutine stokes_gmres(n,src,dsdt,rn,rkappa,dwgt,pwgt,eps,
      1   rhs,numit,eps_gmres,niter,errs,rres,soln)
+c
+cf2py intent(in) n,src,dsdt,rn,rkappa,dwgt,pwgt,eps,rhs,numit
+cf2py intent(in) eps_gmres
+cf2py intent(out) niter,errs,rres,soln
 c
 c   This code is a solver for the stokes interior velocity
 c   problem using the
@@ -694,3 +697,120 @@ cc      call prinf('istart+1=*',istart+1,1)
       end
 
 c------------------------------------------------------------------
+
+      subroutine eval_vel(xp,yp,n,src,dsdt,rn,dwgt,soln,zvel)
+cf2py intent(in) xp,yp,n,src,dsdt,rn,dwgt,soln
+cf2py intent(out) zvel
+c  This subroutine evaluates the velocity due to the sherman 
+c  lauricella representation at a point in the interior
+c
+c
+c
+c  Input arguments:
+c     - xp: real *8
+c         x location of target
+c     - yp: real *8
+c         y location of target
+c     - n: integer
+c         number of source points
+c     - src: real *8 (2,n)
+c          x,y coordinates of source locations
+c     - dsdt: real *8 (n)
+c          quadrature weights for integrating smooth functions
+c     - rn: real *8 (2,n)
+c         normals
+c     - dwgt: real *8
+c         strength of double layer potential
+c     - soln: complex *16 (n)
+c         solution of linear system
+c
+c  Output arguments:
+c     - zvel: complex *16
+c         velocity at target location
+c
+c
+      implicit real *8 (a-h,o-z)
+      integer, intent(in) :: n
+      real *8, intent(in) :: xp,yp,src(2,n),dsdt(n),rn(2,n)
+      real *8, intent(in) :: dwgt
+      complex *16, intent(in) :: soln(n)
+      complex *16, intent(out) :: zvel
+      complex *16 ima
+      real *8 done,pi,rsc
+      integer i
+      complex *16 zn,zdis,zu
+      data ima/(0.0d0,1.0d0)/
+
+      done = 1.0d0
+      pi = atan(done)*4
+
+      zvel = 0
+
+
+      do i=1,n
+        zn = rn(1,i) + ima*rn(2,i)
+        zdis = (src(1,i) - xp) + ima*(src(2,i)-yp)
+        zu = soln(i)
+        rsc = dsdt(i)/(2.0d0*pi)
+
+
+        zvel = zvel + dwgt*0.5d0*rsc*ima*zn*zu/zdis
+        zvel = zvel - dwgt*0.5d0*rsc*ima*dconjg(zn*zu/zdis**2)*
+     1                     zdis
+        zvel = zvel - dwgt*rsc*dreal(ima*zn*dconjg(zu))/
+     1                     dconjg(zdis)
+
+      enddo
+      
+
+      return
+      end
+c
+c
+c
+c
+c
+      subroutine get_bdry_data(n,src,cx,cy,rhs)
+cf2py intent(in) n,src,cx,cy
+cf2py intent(out) rhs
+c
+c  This subroutine gets the boundary data due to a
+c  point doublet at a user given point
+c 
+c  Input arguments:
+c    - n: integer
+c        number of data points
+c    - src: real *8 (2,n)
+c        x,y coordinates of the boundary points
+c    - cx: real *8
+c        source location x coordinate
+c    - cy: real *8
+c        source location y coordinate
+c
+c  Output arguments:
+c    - rhs: complex *16 (n)
+c        boundary data
+c
+      implicit real *8 (a-h,o-z)
+      integer, intent(in) :: n
+      real *8, intent(in) :: src(2,n),cx,cy
+      complex *16, intent(out) :: rhs(n)
+
+      integer i
+      real *8 xvel,yvel,vort,pre,bipot
+      complex *16 ima
+      data ima/(0.0d0,1.0d0)/
+
+
+      itype = 0
+      ifbipot = 0
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,xvel,yvel,vort,pre,bipot)      
+      do i=1,n
+        call uexact(itype,src(1,i),src(2,i),cx,cy,xvel,yvel,
+     1    vort,pre,ifbipot,bipot)
+        rhs(i) = -yvel + ima*xvel
+      enddo
+C$OMP END PARALLEL DO     
+ 
+      return
+      end

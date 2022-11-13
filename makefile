@@ -141,7 +141,7 @@ testf:
 # build the python bindings/interface
 #
 python: $(STATICLIB)
-	cd python && export FMMBIE_LIBS='$(LIBS)' && pip install -e . 
+	cd python && export STLIBS='$(LIBS)' && pip install -e . 
 
 
 
